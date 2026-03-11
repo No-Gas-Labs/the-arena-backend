@@ -1,0 +1,46 @@
+{
+  "name": "the-arena-backend",
+  "version": "1.0.0",
+  "description": "THE ARENA API - Backend for the unified cognitive operating system",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --loader ts-node/esm index.ts",
+    "dev": "node --loader ts-node/esm --watch index.ts",
+    "lint": "eslint src/**/*.ts --fix",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "arena",
+    "ai",
+    "cognitive",
+    "api",
+    "no-gas-labs"
+  ],
+  "author": "Damien Featherstone (Node-H)",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1",
+    "winston": "^3.12.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^20.11.24",
+    "@types/uuid": "^9.0.8",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
