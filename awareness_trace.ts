@@ -200,6 +200,13 @@ class AwarenessTraceStore {
       recentActivity: recentTraces,
     };
   }
+
+  /**
+   * Get count of active sessions
+   */
+  getActiveSessionCount(): number {
+    return this.sessions.size;
+  }
 }
 
 // Singleton instance

@@ -98,9 +98,91 @@ app.get('/api', (_req: Request, res: Response) => {
       insights: 'GET /api/insights/:sessionId',
       awareness: 'GET /api/awareness/:sessionId',
       mutations: 'GET /api/mutations/:sessionId',
+      status: 'GET /api/status - System diagnostics',
     }
   });
 });
+
+// ============================================================================
+// STATUS - Mobile-friendly system diagnostics
+// ============================================================================
+
+app.get('/api/status', (_req: Request, res: Response) => {
+  const providerStatus = {
+    gemini: { configured: !!GEMINI_KEY, model: 'gemini-1.5-flash' },
+    claude: { configured: !!CLAUDE_KEY, model: 'claude-3-haiku-20240307' },
+    chatgpt: { configured: !!CHATGPT_KEY, model: 'gpt-4o-mini' },
+    grok: { configured: !!GROK_KEY, model: 'grok-beta' },
+  };
+
+  const configuredCount = Object.values(providerStatus).filter(p => p.configured).length;
+  const memoryUsage = process.memoryUsage();
+
+  res.json({
+    timestamp: new Date().toISOString(),
+    version: API_VERSION,
+    uptime: {
+      seconds: Math.floor(process.uptime()),
+      human: formatUptime(process.uptime()),
+    },
+    environment: NODE_ENV,
+    providers: {
+      summary: `${configuredCount}/4 configured`,
+      details: providerStatus,
+    },
+    system: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      memory: {
+        heapUsed: formatBytes(memoryUsage.heapUsed),
+        heapTotal: formatBytes(memoryUsage.heapTotal),
+        rss: formatBytes(memoryUsage.rss),
+      },
+    },
+    sessions: {
+      active: awarenessTrace.getActiveSessionCount(),
+    },
+    features: {
+      awarenessTrace: true,
+      multiModelOrchestration: configuredCount > 0,
+      commandCenter: true,
+      integrationBridges: {
+        agpToArena: true,
+        arenaToNinja: true,
+        ninjaToDefi: true,
+      },
+    },
+    message: configuredCount === 0 
+      ? '⚠️ No AI providers configured. Set API keys to enable quad-exposure.'
+      : configuredCount < 4
+        ? `⚠️ Partial AI coverage: ${configuredCount}/4 providers configured.`
+        : '✅ All AI providers configured and ready.',
+  });
+});
+
+// Helper functions for status endpoint
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (mins > 0) parts.push(`${mins}m`);
+  parts.push(`${secs}s`);
+  
+  return parts.join(' ');
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 // ============================================================================
 // SESSIONS - Create and manage quad-exposure AI sessions

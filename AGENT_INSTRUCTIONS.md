@@ -305,6 +305,8 @@ Never write documentation for features that do not exist
 
 Never silently leave broken code behind
 
+Never create modules in isolation — verify that new modules are imported and integrated into the main application (index.ts) and are actually accessible via API endpoints
+
 
 Verification discipline
 
@@ -562,6 +564,8 @@ GET /health/live — liveness probe
 
 GET /api — API documentation / endpoint discovery
 
+GET /api/status — mobile-friendly system diagnostics (provider config, memory, sessions, features)
+
 POST /api/sessions — session management with AI orchestration
 
 GET /api/insights/:sessionId — insights retrieval
@@ -633,3 +637,13 @@ The AI integration code exists but requires environment configuration.
 [DATE: 2026-03-11] | [SuperNinja] | [Created production-ready backend foundation: package.json, index.ts, tsconfig.json, updated Dockerfile, fixed broken build references, verified build and startup, deployed to GitHub.] | [Backend infrastructure is operational. Highest-priority next step is implementing actual multi-model session orchestration for quad-exposure.]
 
 [DATE: 2026-03-31] | [SuperNinja] | [Fixed 35 TypeScript build errors, created missing ninja-agent-templates.ts module, installed missing dependencies (socket.io, axios), fixed ESM module imports, verified build and runtime success, tested /health and /api endpoints.] | [Build now passes. Server starts successfully. AI providers are integrated but require API keys. Next agent: add persistence layer or configure API keys for testing.]
+
+[DATE: 2026-03-31] | [SuperNinja] | [Added /api/status endpoint for mobile-friendly system diagnostics: provider configuration status, memory stats, session counts, feature flags. Added getActiveSessionCount() to awareness trace.] | [Status endpoint enables Android verification of API key configuration. Next agent: configure API keys or add authentication layer. Integration bridges exist but are not wired into main API.]
+
+---
+
+12) DIRECTIVE IMPROVEMENT LOG
+
+This section tracks improvements made to these instructions by agents.
+
+[DATE: 2026-03-31] | [SuperNinja] | Added requirement: Agents must verify that new modules are actually imported and integrated into the main application (index.ts), not just created in isolation. Rationale: The codebase has integration bridges (AGP→ARENA, ARENA→Ninja, Ninja→DeFi) that are defined but never imported in index.ts, creating "orphan code" that compiles but isn't accessible.
