@@ -186,7 +186,7 @@ export class NinjaDefibridge {
   private async executeStrategy(
     strategy: string,
     borrowed: number,
-    decision: AgentDecision
+    _decision: AgentDecision
   ): Promise<number> {
     switch (strategy) {
       case 'arbitrage':

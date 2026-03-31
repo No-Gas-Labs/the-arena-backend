@@ -5,7 +5,7 @@
  * Flow: ARENA Response → Agent Orchestrator → Role-based Processing → Decision Output
  */
 
-import { NinjaAgentFactory, NINJA_ROLES } from './ninja-agent-templates';
+import { NinjaAgentFactory } from './ninja-agent-templates';
 
 interface ArenaResponse {
   id: string;
@@ -151,8 +151,8 @@ export class ArenaNinjaBridge {
   /**
    * Generate execution plan for decision
    */
-  private generateExecutionPlan(decision: any, analysis: any) {
-    const priority = analysis.overallConfidence > 0.85 ? 'high' : 'medium';
+  private generateExecutionPlan(decision: any, analysis: any): { role: string; steps: string[]; priority: 'high' | 'medium' | 'low' } {
+    const priority: 'high' | 'medium' | 'low' = analysis.overallConfidence > 0.85 ? 'high' : 'medium';
 
     return {
       role: decision.agent,

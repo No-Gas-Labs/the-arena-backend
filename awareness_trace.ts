@@ -55,7 +55,6 @@ class AwarenessTraceStore {
   private traces: Map<string, TraceEntry> = new Map();
   private sessions: Map<string, SessionState> = new Map();
   private mutations: AgentMutation[] = [];
-  private maxTracesPerSession = 1000;
 
   /**
    * Log a trace entry

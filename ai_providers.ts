@@ -6,7 +6,8 @@
  * Fed by the Awareness Trace for continuity of presence.
  */
 
-import { awarenessTrace, TraceEntry } from './awareness_trace';
+import { awarenessTrace } from './awareness_trace.js';
+import type { TraceEntry } from './awareness_trace.js';
 
 // ============================================================================
 // TYPES
@@ -70,7 +71,7 @@ export class GeminiProvider extends AIProvider {
     const agentId = `gemini-${Date.now()}`;
 
     try {
-      const contextPrompt = this.buildContextFromHistory(request.historyContext || []);
+      this.buildContextFromHistory(request.historyContext || []);
       
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${this.config.model}:generateContent?key=${this.config.apiKey}`,
@@ -80,7 +81,7 @@ export class GeminiProvider extends AIProvider {
           body: JSON.stringify({
             contents: [{
               parts: [{
-                text: `${request.systemPrompt || 'You are a thoughtful AI in THE ARENA.'}${contextPrompt}\n\nUser: ${request.prompt}`
+                text: `${request.systemPrompt || 'You are a thoughtful AI in THE ARENA.'}\n\nUser: ${request.prompt}`
               }]
             }],
             generationConfig: {
@@ -91,7 +92,7 @@ export class GeminiProvider extends AIProvider {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       const output = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       
       const latencyMs = Date.now() - startTime;
@@ -100,8 +101,8 @@ export class GeminiProvider extends AIProvider {
         agentId,
         modelName: 'gemini',
         output,
-        inputTokens: request.prompt.length / 4, // Approximate
-        outputTokens: output.length / 4,
+        inputTokens: Math.floor(request.prompt.length / 4),
+        outputTokens: Math.floor(output.length / 4),
         latencyMs,
       };
     } catch (error) {
@@ -128,7 +129,7 @@ export class ClaudeProvider extends AIProvider {
     const agentId = `claude-${Date.now()}`;
 
     try {
-      const contextPrompt = this.buildContextFromHistory(request.historyContext || []);
+      this.buildContextFromHistory(request.historyContext || []);
       
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -143,12 +144,15 @@ export class ClaudeProvider extends AIProvider {
           system: request.systemPrompt || 'You are a thoughtful AI in THE ARENA.',
           messages: [{
             role: 'user',
-            content: `${contextPrompt}\n\n${request.prompt}`
+            content: request.prompt
           }]
         })
       });
 
-      const data = await response.json();
+      const data = await response.json() as { 
+        content?: Array<{ text?: string }>; 
+        usage?: { input_tokens?: number; output_tokens?: number } 
+      };
       const output = data.content?.[0]?.text || '';
       
       const latencyMs = Date.now() - startTime;
@@ -185,7 +189,7 @@ export class ChatGPTProvider extends AIProvider {
     const agentId = `chatgpt-${Date.now()}`;
 
     try {
-      const contextPrompt = this.buildContextFromHistory(request.historyContext || []);
+      this.buildContextFromHistory(request.historyContext || []);
       
       // Build messages array from history
       const messages: Array<{role: string; content: string}> = [
@@ -194,14 +198,13 @@ export class ChatGPTProvider extends AIProvider {
 
       // Add recent history as messages
       if (request.historyContext && request.historyContext.length > 0) {
-        for (const entry of request.historyContext.reverse()) {
+        for (const entry of [...request.historyContext].reverse()) {
           messages.push({ role: 'user', content: entry.prompt });
           messages.push({ role: 'assistant', content: entry.output });
         }
       }
 
       messages.push({ role: 'user', content: request.prompt });
-
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -216,7 +219,10 @@ export class ChatGPTProvider extends AIProvider {
         })
       });
 
-      const data = await response.json();
+      const data = await response.json() as { 
+        choices?: Array<{ message?: { content?: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number }
+      };
       const output = data.choices?.[0]?.message?.content || '';
       
       const latencyMs = Date.now() - startTime;
@@ -253,21 +259,20 @@ export class GrokProvider extends AIProvider {
     const agentId = `grok-${Date.now()}`;
 
     try {
-      const contextPrompt = this.buildContextFromHistory(request.historyContext || []);
+      this.buildContextFromHistory(request.historyContext || []);
       
       const messages: Array<{role: string; content: string}> = [
         { role: 'system', content: request.systemPrompt || 'You are Grok, a witty and insightful AI in THE ARENA. Be yourself.' }
       ];
 
       if (request.historyContext && request.historyContext.length > 0) {
-        for (const entry of request.historyContext.reverse()) {
+        for (const entry of [...request.historyContext].reverse()) {
           messages.push({ role: 'user', content: entry.prompt });
           messages.push({ role: 'assistant', content: entry.output });
         }
       }
 
       messages.push({ role: 'user', content: request.prompt });
-
       const response = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -282,7 +287,10 @@ export class GrokProvider extends AIProvider {
         })
       });
 
-      const data = await response.json();
+      const data = await response.json() as { 
+        choices?: Array<{ message?: { content?: string } }>;
+        usage?: { prompt_tokens?: number; completion_tokens?: number }
+      };
       const output = data.choices?.[0]?.message?.content || '';
       
       const latencyMs = Date.now() - startTime;
@@ -344,7 +352,6 @@ export class ArenaOrchestrator {
 
   async orchestrate(sessionId: string, prompt: string, models?: string[]): Promise<AIResponse[]> {
     const historyContext = awarenessTrace.getHistoryContext(sessionId);
-    const responses: AIResponse[] = [];
 
     const activeModels = models || Array.from(this.providers.keys());
 

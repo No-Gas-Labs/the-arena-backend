@@ -5,7 +5,7 @@
  * Features: AI model integrations, awareness trace, adaptive identity
  */
 
-import express, { Request, Response, NextFunction, Router } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -14,8 +14,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { createLogger, format, transports } from 'winston';
 
 // Import Arena modules
-import awarenessTrace, { traceMiddleware, TraceEntry } from './awareness_trace';
-import { orchestrator, createProvider, AIResponse } from './ai_providers';
+import awarenessTrace, { traceMiddleware } from './awareness_trace.js';
+import { orchestrator, createProvider } from './ai_providers.js';
 
 // Load environment variables
 config();
@@ -113,7 +113,7 @@ interface SessionRequest {
 }
 
 app.post('/api/sessions', async (req: Request, res: Response) => {
-  const { prompt, models, systemPrompt } = req.body as SessionRequest;
+  const { prompt, models } = req.body as SessionRequest;
   const sessionId = req.headers['x-session-id'] as string || uuidv4();
 
   if (!prompt) {
@@ -134,7 +134,7 @@ app.post('/api/sessions', async (req: Request, res: Response) => {
       sessionId,
       status: 'created',
       prompt,
-      responses: responses.map(r => ({
+      responses: responses.map((r: { modelName: string; output: string; inputTokens: number; outputTokens: number; latencyMs: number }) => ({
         model: r.modelName,
         output: r.output,
         tokens: r.inputTokens + r.outputTokens,
@@ -161,11 +161,10 @@ app.post('/api/sessions', async (req: Request, res: Response) => {
 // ============================================================================
 
 app.get('/api/insights/:sessionId', (req: Request, res: Response) => {
-  const { sessionId } = req.params;
-  const insights = awarenessTrace.getInsights(sessionId);
+  const insights = awarenessTrace.getInsights(req.params.sessionId);
 
   res.json({
-    sessionId,
+    sessionId: req.params.sessionId,
     ...insights,
     message: insights.traceCount > 0 
       ? 'Awareness trace active' 
@@ -238,7 +237,7 @@ app.get('/api/mutations/:sessionId', (req: Request, res: Response) => {
 // ============================================================================
 
 app.post('/api/publish', (req: Request, res: Response) => {
-  const { channel, content, sessionId } = req.body;
+  const { channel, content } = req.body;
 
   if (!channel || !content) {
     return res.status(400).json({
@@ -260,7 +259,7 @@ app.post('/api/publish', (req: Request, res: Response) => {
 // ============================================================================
 
 app.post('/api/blockchain/claim', (req: Request, res: Response) => {
-  const { network, insightHash, sessionId } = req.body;
+  const { network, insightHash } = req.body;
 
   if (!network || !insightHash) {
     return res.status(400).json({
@@ -287,7 +286,7 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   logger.error('Unhandled error:', err);
   res.status(500).json({
     error: 'Internal Server Error',

@@ -3,15 +3,15 @@
  * Backend endpoints for unified system control and monitoring
  */
 
-import express from 'express';
-import { Server as SocketIOServer } from 'socket.io';
+import express, { Request, Response } from 'express';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 import { createServer } from 'http';
 
 export class CommandCenterAPI {
   private app: express.Application;
   private io: SocketIOServer;
-  private systemState: any = {};
-  private executionHistory: any[] = [];
+  private systemState: Record<string, unknown> = {};
+  private executionHistory: Array<Record<string, unknown>> = [];
 
   constructor(port: number = 3001) {
     this.app = express();
@@ -32,67 +32,67 @@ export class CommandCenterAPI {
     this.app.use(express.json());
 
     // Get all system status
-    this.app.get('/api/status', (req, res) => {
+    this.app.get('/api/status', (_req: Request, res: Response) => {
       res.json(this.systemState);
     });
 
     // Get specific system status
-    this.app.get('/api/status/:system', (req, res) => {
+    this.app.get('/api/status/:system', (req: Request, res: Response) => {
       const { system } = req.params;
       res.json(this.systemState[system] || {});
     });
 
     // Get execution history
-    this.app.get('/api/history', (req, res) => {
+    this.app.get('/api/history', (req: Request, res: Response) => {
       const limit = parseInt(req.query.limit as string) || 100;
       res.json(this.executionHistory.slice(0, limit));
     });
 
     // Get execution statistics
-    this.app.get('/api/stats', (req, res) => {
+    this.app.get('/api/stats', (_req: Request, res: Response) => {
       const stats = {
         totalExecutions: this.executionHistory.length,
         successfulExecutions: this.executionHistory.filter((e) => e.status === 'success').length,
         failedExecutions: this.executionHistory.filter((e) => e.status === 'failed').length,
-        totalProfit: this.executionHistory.reduce((sum, e) => sum + (e.profit || 0), 0),
-        totalFees: this.executionHistory.reduce((sum, e) => sum + (e.fee || 0), 0),
+        totalProfit: this.executionHistory.reduce((sum, e) => sum + (e.profit as number || 0), 0),
+        totalFees: this.executionHistory.reduce((sum, e) => sum + (e.fee as number || 0), 0),
       };
       res.json(stats);
     });
 
     // Control endpoints
-    this.app.post('/api/control/agp/start', (req, res) => {
+    this.app.post('/api/control/agp/start', (_req: Request, res: Response) => {
       this.io.emit('agp:start-broadcast');
       this.addLog('AGP', 'Start Broadcast', 'pending');
       res.json({ success: true });
     });
 
-    this.app.post('/api/control/agp/stop', (req, res) => {
+    this.app.post('/api/control/agp/stop', (_req: Request, res: Response) => {
       this.io.emit('agp:stop-broadcast');
       this.addLog('AGP', 'Stop Broadcast', 'pending');
       res.json({ success: true });
     });
 
-    this.app.post('/api/control/arena/analyze', (req, res) => {
+    this.app.post('/api/control/arena/analyze', (_req: Request, res: Response) => {
       this.io.emit('arena:analyze');
       this.addLog('ARENA', 'Trigger Analysis', 'pending');
       res.json({ success: true });
     });
 
-    this.app.post('/api/control/ninja/execute', (req, res) => {
+    this.app.post('/api/control/ninja/execute', (_req: Request, res: Response) => {
       this.io.emit('ninja:execute-decision');
       this.addLog('Ninja', 'Execute Decision', 'pending');
       res.json({ success: true });
     });
 
-    this.app.post('/api/control/defi/trade', (req, res) => {
+    this.app.post('/api/control/defi/trade', (_req: Request, res: Response) => {
       this.io.emit('defi:execute-trade');
       this.addLog('DeFi', 'Execute Trade', 'pending');
       res.json({ success: true });
     });
 
     // Emergency stop
-    this.app.post('/api/control/emergency-stop', (req, res) => {
+    this.app.post('/api/control/emergency-stop', (_req: Request, res: Response) => {
       this.io.emit('system:emergency-stop');
       this.addLog('SYSTEM', 'Emergency Stop', 'success');
       res.json({ success: true });
@@ -100,11 +100,11 @@ export class CommandCenterAPI {
   }
 
   private setupWebSocket() {
-    this.io.on('connection', (socket) => {
+    this.io.on('connection', (socket: Socket) => {
       console.log('Command Center client connected:', socket.id);
 
       // Subscribe to system updates
-      socket.on('command:subscribe', (data) => {
+      socket.on('command:subscribe', (data: { systems: string[] }) => {
         const { systems } = data;
         socket.join(`systems:${systems.join(',')}`);
         console.log(`Client subscribed to systems:`, systems);
