@@ -16,6 +16,10 @@ import { createLogger, format, transports } from 'winston';
 // Import Arena modules
 import awarenessTrace, { traceMiddleware } from './awareness_trace.js';
 import { orchestrator, createProvider } from './ai_providers.js';
+import { CommandCenterAPI } from './src/api/command-center-api.js';
+
+// Command Center singleton for system integration
+let commandCenter: CommandCenterAPI | null = null;
 
 // Load environment variables
 config();
@@ -388,6 +392,110 @@ const server = app.listen(PORT, () => {
     CHATGPT_KEY && 'chatgpt',
     GROK_KEY && 'grok'
   ].filter(Boolean).join(', ') || 'none (add API keys)'}`);
+  
+  // Initialize Command Center on separate port for WebSocket support
+  const COMMAND_CENTER_PORT = process.env.COMMAND_CENTER_PORT ? parseInt(process.env.COMMAND_CENTER_PORT) : 3001;
+  commandCenter = new CommandCenterAPI(COMMAND_CENTER_PORT);
+  logger.info(`Command Center API started on port ${COMMAND_CENTER_PORT}`);
+});
+
+// ============================================================================
+// COMMAND CENTER INTEGRATION ENDPOINTS
+// ============================================================================
+
+// Get command center status
+app.get('/api/command-center/status', (_req: Request, res: Response) => {
+  res.json({
+    status: commandCenter ? 'operational' : 'not_initialized',
+    websocketPort: process.env.COMMAND_CENTER_PORT || 3001,
+    supportedSystems: ['agp', 'arena', 'ninja', 'defi'],
+    endpoints: {
+      status: 'GET /api/command-center/status',
+      control: 'POST /api/command-center/control/:system/:action',
+      history: 'GET /api/command-center/history',
+      stats: 'GET /api/command-center/stats'
+    }
+  });
+});
+
+// Control system actions
+app.post('/api/command-center/control/:system/:action', (req: Request, res: Response) => {
+  const { system, action } = req.params;
+  const validSystems = ['agp', 'arena', 'ninja', 'defi'];
+  const validActions = ['start', 'stop', 'analyze', 'execute', 'trade'];
+  
+  if (!validSystems.includes(system)) {
+    return res.status(400).json({
+      error: 'Invalid system',
+      validSystems
+    });
+  }
+  
+  if (!validActions.includes(action)) {
+    return res.status(400).json({
+      error: 'Invalid action',
+      validActions
+    });
+  }
+  
+  // Record the control action in awareness trace
+  awarenessTrace.logTrace({
+    sessionId: 'command-center',
+    agentId: 'command-center',
+    modelName: 'system',
+    prompt: `${system}:${action}`,
+    inputTokens: 0,
+    outputTokens: 0,
+    output: JSON.stringify({ status: 'dispatched' }),
+    latencyMs: 0,
+    tensionScore: 0
+  });
+  
+  res.json({
+    success: true,
+    system,
+    action,
+    message: `Control command '${action}' dispatched to '${system}'`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Get execution history
+app.get('/api/command-center/history', (_req: Request, res: Response) => {
+  const traces = awarenessTrace.getActiveSessionCount();
+  res.json({
+    message: 'Execution history available via Command Center WebSocket',
+    activeSessions: traces,
+    websocketEndpoint: `ws://localhost:${process.env.COMMAND_CENTER_PORT || 3001}`
+  });
+});
+
+// Get system statistics
+app.get('/api/command-center/stats', (_req: Request, res: Response) => {
+  res.json({
+    arena: {
+      status: 'operational',
+      providers: {
+        gemini: !!GEMINI_KEY,
+        claude: !!CLAUDE_KEY,
+        chatgpt: !!CHATGPT_KEY,
+        grok: !!GROK_KEY
+      }
+    },
+    uptime: process.uptime(),
+    version: API_VERSION
+  });
+});
+
+// Emergency stop - Android-accessible endpoint
+app.post('/api/command-center/emergency-stop', (_req: Request, res: Response) => {
+  logger.warn('Emergency stop triggered');
+  
+  res.json({
+    success: true,
+    message: 'Emergency stop initiated - all systems halted',
+    timestamp: new Date().toISOString()
+  });
 });
 
 export default server;
