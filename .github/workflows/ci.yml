@@ -13,33 +13,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 8
-          
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
+          cache: 'npm'
           
       - name: Install dependencies
-        run: pnpm install
+        run: npm ci
         
       - name: Type check
-        run: pnpm exec tsc --noEmit || true
+        run: npm run typecheck || npm exec tsc -- --noEmit || true
         
       - name: Lint
-        run: pnpm exec eslint . || true
+        run: npm run lint || true
         
       - name: Build
-        run: pnpm build
+        run: npm run build
         
       - name: Run tests
-        run: pnpm test || pnpm exec vitest run || true
+        run: npm test || true
         
       - name: Verify output
         run: |
           test -d dist && echo "✓ Build output verified" || true
           
       - name: Security audit
-        run: pnpm audit --audit-level=moderate || true
+        run: npm audit --audit-level=moderate || true
